@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Tagihan Anggota RK</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #27ae60;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { text-align: center; color: var(--primary); margin-bottom: 10px; }
+        
+        .search-box {
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .search-box:focus { border-color: var(--info); box-shadow: 0 0 8px rgba(52, 152, 219, 0.3); }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #95a5a6;
+            color: white;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+
+        button.active { background: var(--primary); }
+        button:hover { opacity: 0.9; }
+
+        .summary {
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 5px solid var(--primary);
+            border-radius: 4px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            transition: 0.3s;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: var(--primary); color: white; position: sticky; top: 0; }
+
+        .status-lunas { color: white; background: var(--secondary); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-bayar { color: white; background: var(--danger); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-lebih { color: white; background: var(--info); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+
+        tr:hover { background-color: #f1f1f1; }
+        
+        .no-data { text-align: center; padding: 20px; color: #999; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Data Tagihan Anggota Rukun Kematian Dusun Brigah</h1>
+    
+    <input type="text" id="searchInput" class="search-box" placeholder="Ketik nama anggota untuk mencari..." onkeyup="filterData()" autocomplete="off">
+
+    <div class="filter-buttons">
+        <button onclick="renderTable('ALL')" id="btnALL" class="active">Semua</button>
+        <button onclick="renderTable('SARWEH')" id="btnSARWEH">Di Sarweh</button>
+        <button onclick="renderTable('LUAR')" id="btnLUAR">Luar Sarweh</button>
+    </div>
+
+    <div class="summary" id="summaryBox">
+        <span>Total Anggota: <span id="txtTotal">0</span></span>
+        <span>Belum Bayar: <span id="txtBelum" style="color:var(--danger)">0</span></span>
+    </div>
+
+    <table id="rkTable">
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>Nama Anggota</th>
+                <th>Tagihan</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+    <div id="noData" class="no-data">Data tidak ditemukan...</div>
+</div>
+
+<script>
+    const dataSarweh = [
+        "K M WAQID=40.000", "K MODAKKIR=20.000", "NYAI MOADAH=20.000", "NYAI MUTMAINhNAH/K FITNI=190.000", "K AMIN=260.000",
+        "JUFRIADI=200.000", "ARBAIN=LUNAS/PAS", "H ABD HARIS=160.000", "H HAMID=40.000", "ZAINOL ISHAK=10.000",
+        "ILHAM=30.000", "H RAHMADIN=100.000", "K SIPUL=130.000", "AS AT=170.000", "KURDI=40.000",
+        "IVAN/NASUHA=40.000", "M DA'I=20.000", "SUWANDI=60.000", "SITTI MAIMONATUN/ CIP=90.000", "P SULIS=40.000",
+        "ABD MUDHAR=30.000", "MAFTUHAH/YA'KUP=150.000", "JATEM=40.000", "ABD SOMAD=40.000", "LUTFIADI=210.000",
+        "HAIRUL ANWAR=40.000", "P SUBAIRAH/SIPUL=180.000", "ABU YASID=140.000", "M HAFID=180.000", "RIFA I=110.000",
+        "BUDIONO=LUNAS", "ARIP P RIA=40.000", "BAHARUDDIN/KUSAI=90.000", "FATHOR RAHMAN=60.000", "M ARIP/AUL=170.000",
+        "HERMAN=40.000", "ABD BARI=30.000", "SUKRON=30.000", "SULYADI=120.000", "KARNAN=60.000", "MOH HASIM=60.000",
+        "H JALAL=LUNAS", "ALIMAKKI=LUNAS", "H YUSUP=60.000", "MARDIYA=LUNAS", "H ANSORI=30.000", "SAMHUDI=40.000",
+        "KATIMIN=180.000", "IMAM SUTRISNO=30.000", "ISMAIL BETES=50.000", "H ISMAIL SENTAMAN=20.000", "MOH NASIR=160.000","H ISMAIL(klerker)=LUNAS", "K ALI=250.000"
+    ];
+
+    const dataLuar = [
+        "H M TAMIN=260.000", "SAYU=110.000", "K AZIS=270.000", "JUHAIRIYAH=40.000", "ABD MANNAN=220.000",
+        "MOH HASIN=90.000", "K NAWAWI=30.000", "HOZAIMAH=260.000", "HASIN BPO=290.000", "ABD QODIR=70.000",
+        "ACH JAUHARI=120.000", "HATIMAH=40.000", "H BAHRI=90.000", "MOH ALI=LEBIH 40.000", "HALILI=40.000",
+        "H KARIMUN=LEBIH 10.000", "ABD HANNAN=120.000", "M YASIYANTO=90.000", "B HOSNIYAH=40.000", "ABDURRAHMAN=240.000",
+        "K JUHARI=40.000", "K SADILI/K MOJIB=30.000", "H ASNIRI=40.000", "HAIRUDDIN /MIMAH=70.000", "ROHEMAH=LUNAS/PAS",
+        "MOLYADI=220.000", "B NOR/ZAHRAH=20.000", "BAIKUNI=40.000", "P HOLIL=40.000", "SITRRO=20.000",
+        "SIDDIK SURYADI=320.000", "RUKMIATI=120.000", "HAIRIYAH=20.000", "SUPARMI=LUNAS", "M RIDWAN=50.000",
+        "ABD LAHIR=20.000", "AGUSSALIM=100.000", "NURUL LAILA=40.000", "NOHOLIS HERIYANTO=LEBIH 5.000", "HALIMI=30.000",
+        "SYAIR=10.000", "BUNARIYAH=LUNAS", "SITTINA=LUNAS", "HANAFI=120.000", "BUNARWI=40.000", "MISTARI=130.000",
+        "MO'TIYAH=20.000", "FAHRIZAL=350.000", "FATHOR/FANI=140.000", "UMAR=20.000", "ABD KAMAR=40.000",
+        "QOWIYAH/EDI=LUNAS", "JUMRIYAH=50.000", "TA'IP P LILIK=190.000", "SUPAT=LEBIH 80.000", "HOBAIRI=40.000",
+        "MONIR=30.000", "SAIFUL BAHRI DIANA=120.000", "NORAHMAD=40.000", "ADEH=180.000", "AINIYAH=40.000", "MAISUN=20.000"
+    ];
+
+    let currentCategory = 'ALL';
+
+    function parseData(arr, catName) {
+        return arr.map(item => {
+            const [nama, nilaiRaw] = item.split('=');
+            const nilai = nilaiRaw || "-";
+            let status = "BELUM BAYAR", classStatus = "status-bayar";
+
+            if (nilai.toLowerCase().includes("lunas")) {
+                status = "LUNAS"; classStatus = "status-lunas";
+            } else if (nilai.toLowerCase().includes("lebih")) {
+                status = "LEBIH"; classStatus = "status-lebih";
+            }
+
+            return { nama, nilai, status, classStatus, kategori: catName };
+        });
+    }
+
+    const allData = [...parseData(dataSarweh, 'SARWEH'), ...parseData(dataLuar, 'LUAR')];
+
+    function renderTable(category) {
+        currentCategory = category;
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        
+        document.querySelectorAll('.filter-buttons button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn' + category).classList.add('active');
+
+        const filtered = allData.filter(d => category === 'ALL' || d.kategori === category);
+        
+        filtered.forEach((item, index) => {
+            const row = `<tr>
+                <td>${index + 1}</td>
+                <td>${item.nama}</td>
+                <td>${item.nilai}</td>
+                <td><span class="${item.classStatus}">${item.status}</span></td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        updateSummary();
+        document.getElementById('searchInput').value = ''; // Reset pencarian saat ganti kategori
+    }
+
+    // FUNGSI PENCARIAN OTOMATIS & UPDATE RINGKASAN
+    function filterData() {
+        const input = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#tableBody tr');
+        let visibleCount = 0;
+        let belumBayarCount = 0;
+
+        rows.forEach(row => {
+            const nama = row.cells[1].innerText.toLowerCase();
+            const status = row.cells[3].innerText;
+            
+            if (nama.includes(input)) {
+                row.style.display = "";
+                visibleCount++;
+                if (status === "BELUM BAYAR") belumBayarCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        // Update teks ringkasan
+        document.getElementById('txtTotal').innerText = visibleCount;
+        document.getElementById('txtBelum').innerText = belumBayarCount;
+        
+        // Tampilkan pesan jika tidak ada hasil
+        document.getElementById('noData').style.display = visibleCount === 0 ? "block" : "none";
+        
+        // Beri warna highlight pada box saat mencari
+        const summaryBox = document.getElementById('summaryBox');
+        summaryBox.style.backgroundColor = input !== "" ? "#e1f5fe" : "#f8f9fa";
+    }
+
+    function updateSummary() {
+        const rows = document.querySelectorAll('#tableBody tr');
+        let total = rows.length;
+        let belum = 0;
+        rows.forEach(r => {
+            if(r.cells[3].innerText === "BELUM BAYAR") belum++;
+        });
+        document.getElementById('txtTotal').innerText = total;
+        document.getElementById('txtBelum').innerText = belum;
+    }
+
+    renderTable('ALL');
+</script>
+
+</body>
+</html>
